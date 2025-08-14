@@ -1,3 +1,1 @@
-export type TAppHeaderUIProps = {
-  userName: string | undefined;
-};
+export type TAppHeaderUIProps = {};

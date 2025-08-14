@@ -1,36 +1,57 @@
 import { FC, useMemo } from 'react';
 import { TConstructorIngredient } from '@utils-types';
 import { BurgerConstructorUI } from '@ui';
+import { useDispatch, useSelector } from '../../services/store';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { selectUser } from '../../services/user/slice';
+import {
+  createOrder,
+  resetLastCreated,
+  selectLastCreatedOrder,
+  selectOrdersLoading
+} from '../../services/orders/slice';
+import { clearConstructor } from '../../services/burger-constructor/slice';
 
 export const BurgerConstructor: FC = () => {
-  /** TODO: взять переменные constructorItems, orderRequest и orderModalData из стора */
-  const constructorItems = {
-    bun: {
-      price: 0
-    },
-    ingredients: []
-  };
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const orderRequest = false;
+  const { bun, ingredients } = useSelector((state) => state.burgerConstructor);
+  const user = useSelector(selectUser);
 
-  const orderModalData = null;
-
-  const onOrderClick = () => {
-    if (!constructorItems.bun || orderRequest) return;
-  };
-  const closeOrderModal = () => {};
+  const orderRequest = useSelector(selectOrdersLoading);
+  const orderModalData = useSelector(selectLastCreatedOrder);
 
   const price = useMemo(
     () =>
-      (constructorItems.bun ? constructorItems.bun.price * 2 : 0) +
-      constructorItems.ingredients.reduce(
-        (s: number, v: TConstructorIngredient) => s + v.price,
+      (bun ? bun.price * 2 : 0) +
+      (ingredients as TConstructorIngredient[]).reduce(
+        (s, v) => s + v.price,
         0
       ),
-    [constructorItems]
+    [bun, ingredients]
   );
 
-  return null;
+  const onOrderClick = () => {
+    if (!bun || orderRequest) return;
+
+    if (!user) {
+      navigate('/login', { replace: true, state: { from: location } });
+      return;
+    }
+
+    const ingredientIds = [bun._id, ...ingredients.map((i) => i._id), bun._id];
+
+    dispatch(createOrder(ingredientIds));
+  };
+
+  const closeOrderModal = () => {
+    dispatch(resetLastCreated());
+    dispatch(clearConstructor());
+  };
+
+  const constructorItems = { bun, ingredients };
 
   return (
     <BurgerConstructorUI
