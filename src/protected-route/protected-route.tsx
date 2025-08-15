@@ -2,6 +2,7 @@ import { PropsWithChildren, FC } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useSelector } from '../services/store';
 import { selectUser, selectIsAuthChecked } from '../services/user/slice';
+import { Preloader } from '@ui';
 
 const ProtectedRoute: FC<PropsWithChildren<{ onlyUnAuth?: boolean }>> = ({
   onlyUnAuth = false,
@@ -12,7 +13,7 @@ const ProtectedRoute: FC<PropsWithChildren<{ onlyUnAuth?: boolean }>> = ({
   const location = useLocation();
 
   if (!isAuthChecked) {
-    return null;
+    return <Preloader />;
   }
 
   if (onlyUnAuth) {

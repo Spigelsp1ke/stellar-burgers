@@ -6,10 +6,6 @@ import { registerUser, selectUserLoading } from '../../services/user/slice';
 
 export const Register: FC = () => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const location = useLocation() as {
-    state?: { from?: { pathname?: string } };
-  };
 
   const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('');
@@ -25,8 +21,6 @@ export const Register: FC = () => {
       await dispatch(
         registerUser({ name: userName, email, password })
       ).unwrap();
-      const from = location.state?.from?.pathname || '/';
-      navigate(from, { replace: true });
     } catch (err: any) {
       setErrorText(err?.message || 'Не удалось зарегистрироваться');
     }

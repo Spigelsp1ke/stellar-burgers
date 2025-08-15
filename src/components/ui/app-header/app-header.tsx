@@ -8,12 +8,16 @@ import {
   ProfileIcon
 } from '@zlden/react-developer-burger-ui-components';
 import { NavLink } from 'react-router-dom';
+import { selectUser } from '../../../services/user/slice';
+import { useSelector } from '../../../services/store';
 
 export const AppHeaderUI: FC<TAppHeaderUIProps> = () => {
+  const user = useSelector(selectUser);
+
   const iconType = (active: boolean) => (active ? 'primary' : 'secondary');
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `${styles.link} ${isActive ? '' : 'text_color_inactive'}`;
+    `${styles.link} ${isActive ? styles.link_active : 'text_color_inactive'}`;
 
   return (
     <header className={styles.header}>
@@ -41,7 +45,9 @@ export const AppHeaderUI: FC<TAppHeaderUIProps> = () => {
           </NavLink>
         </div>
         <div className={styles.logo}>
-          <Logo className='' />
+          <NavLink to='/'>
+            <Logo className='' />
+          </NavLink>
         </div>
         <div className={styles.link_position_last}>
           <NavLink to='/profile' className={linkClass}>
@@ -49,7 +55,7 @@ export const AppHeaderUI: FC<TAppHeaderUIProps> = () => {
               <>
                 <ProfileIcon type={iconType(isActive)} />
                 <p className='text text_type_main-default ml-2'>
-                  Личный кабинет
+                  {user?.name || 'Личный кабинет'}
                 </p>
               </>
             )}
