@@ -9,7 +9,7 @@ type OrdersState = {
   lastCreatedOrder: TOrder | null;
 };
 
-const initialState: OrdersState = {
+export const initialState: OrdersState = {
   my: [],
   isLoading: false,
   error: null,

@@ -1,0 +1,28 @@
+[
+  {
+    "_id": "bun-krator",
+    "name": "Краторная булка",
+    "type": "bun",
+    "proteins": 10,
+    "fat": 5,
+    "carbohydrates": 20,
+    "calories": 200,
+    "price": 125,
+    "image": "bun.png",
+    "image_large": "bun-large.png",
+    "image_mobile": "bun-mobile.png"
+  },
+  {
+    "_id": "main-meteor",
+    "name": "Говяжий метеорит",
+    "type": "main",
+    "proteins": 50,
+    "fat": 40,
+    "carbohydrates": 30,
+    "calories": 500,
+    "price": 200,
+    "image": "meat.png",
+    "image_large": "meat-large.png",
+    "image_mobile": "meat-mobile.png"
+  }
+]

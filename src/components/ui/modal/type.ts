@@ -4,4 +4,7 @@ export type TModalUIProps = {
   title: string;
   onClose: () => void;
   children?: ReactNode;
+  dataCy?: string;
+  titleDataCy?: string;
+  overlayDataCy?: string;
 };

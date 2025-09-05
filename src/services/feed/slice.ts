@@ -8,7 +8,11 @@ type FeedState = {
   error: string | null;
 };
 
-const initialState: FeedState = { data: null, isLoading: false, error: null };
+export const initialState: FeedState = {
+  data: null,
+  isLoading: false,
+  error: null
+};
 
 export const fetchFeed = createAsyncThunk<TOrdersData>(
   'feed/fetch',

@@ -1,0 +1,22 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["cypress", "node"],
+    "noEmit": true,
+    "isolatedModules": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.cy.ts",
+    "**/*.cy.tsx",
+    "support/**/*.ts",
+    "support/**/*.tsx",
+    "e2e/**/*.ts",
+    "e2e/**/*.tsx",
+    "component/**/*.ts",
+    "component/**/*.tsx"
+  ],
+  "exclude": ["../node_modules", "../dist", "../build"]
+}

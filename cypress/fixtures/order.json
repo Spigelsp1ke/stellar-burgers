@@ -1,0 +1,9 @@
+{
+  "order": {
+    "_id": "o1",
+    "number": 777,
+    "name": "Space Burger",
+    "status": "done",
+    "ingredients": ["bun-krator", "main-meteor"]
+  }
+}
