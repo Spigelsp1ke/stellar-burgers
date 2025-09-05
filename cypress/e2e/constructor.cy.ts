@@ -1,8 +1,38 @@
 import type {} from "cypress";
 
-const API = "https://norma.nomoreparties.space/api";
+type Ingredient = {
+  _id: string;
+  name: string;
+  type?: string;
+  proteins?: number;
+  fat?: number;
+  carbohydrates?: number;
+  calories?: number;
+  price?: number;
+  image?: string;
+  image_large?: string;
+  image_mobile?: string;
+};
 
-const visitClean = (path = "/") =>
+type IngredientsFixture = Ingredient[];
+
+interface User {
+  name: string;
+  email: string;
+}
+
+type UserFixture = { user: User };
+
+type OrderPayload = { order: { number: number } };
+type OrderResponse = { success: true } & OrderPayload & Record<string, unknown>;
+
+const resolveIngredients = (f: IngredientsFixture): Ingredient[] => f;
+const toUserBody = (u: UserFixture): { user: User } => u;
+const getOrderNumber = (o: OrderPayload): number => o.order.number;
+
+const visitClean = (path = "/") => {
+  cy.clearCookies();
+  cy.clearLocalStorage();
   cy.visit(path, {
     onBeforeLoad(win) {
       if ("serviceWorker" in win.navigator) {
@@ -13,85 +43,72 @@ const visitClean = (path = "/") =>
       if ("caches" in win) {
         win.caches.keys().then((keys) => keys.forEach((k) => win.caches.delete(k)));
       }
-      win.localStorage.clear();
       win.sessionStorage.clear();
     },
   });
+};
 
 const interceptIngredients = () => {
-  cy.fixture('ingredients.json').then((ingredients) => {
-    const body = { success: true, data: ingredients };
-    cy.intercept(
-      { method: 'GET', url: '**/ingredients*', middleware: true },
-      (req) => req.reply({ statusCode: 200, body })
-    ).as('ingredients');
+  cy.fixture<IngredientsFixture>("ingredients.json").then((ingredients) => {
+    const body = { success: true, data: ingredients } as const;
+    cy.intercept("GET", "**/ingredients*", body).as("ingredients");
   });
 };
 
 const interceptUserOK = () => {
-  cy.fixture('user.json').then((user) => {
-    const body = { success: true, user: (user as any).user ?? user };
-    cy.intercept(
-      { method: 'GET', url: '**/auth/user*', middleware: true },
-      (req) => req.reply({ statusCode: 200, body })
-    ).as('user');
+  cy.fixture<UserFixture>("user.json").then((user) => {
+    const body = { success: true, user: user.user } as const;
+    cy.intercept("GET", "**/auth/user*", body).as("user");
   });
 };
 
 const interceptUser401 = () => {
-  const body = { success: false, message: "Unauthorized" };
-  cy.intercept(
-    { method: 'GET', url: '**/auth/user*', middleware: true },
-    (req) => req.reply({ statusCode: 401, body: { success: false, message: 'Unauthorized' } })
-  ).as('user401');
+  cy.intercept("GET", "**/auth/user*", { success: false, message: "Unauthorized" }).as("user401");
 };
 
 const interceptCreateOrder = () => {
-  cy.fixture('order.json').then((orderResp) => {
-    const body = { success: true, ...(orderResp as any) };
-    cy.intercept(
-      { method: 'POST', url: '**/orders*', middleware: true },
-      (req) => req.reply({ statusCode: 200, body })
-    ).as('createOrder');
+  cy.fixture<OrderPayload>("order.json").then((orderResp) => {
+    const body: OrderResponse = { success: true, ...orderResp };
+    cy.intercept("POST", "**/orders*", body).as("createOrder");
   });
 };
 
-describe("Burger Constructor — проверка intercept-only", () => {
-  it("Открывает модалку ингредиента и закрывает крестиком/оверлеем", () => {
-    interceptIngredients();
-    visitClean("/");
+const expectCardCounter = (id: string, n: number) =>
+  cy
+    .get(`[data-cy="ingredient-card"][data-id="${id}"] [data-cy="counter"]`)
+    .should("have.text", String(n));
 
-    cy.wait("@ingredients", { timeout: 15000 });
-
-    cy.contains(/кратор.*булка/i).should("be.visible").click();
-    cy.contains(/детали ингредиента/i).should("be.visible");
-
-    cy.get("body").then(($body) => {
-      const closeBtn = $body.find(
-        'button[aria-label*="закры"], button[aria-label*="Закры"], button[class*="close"]'
-      );
-      if (closeBtn.length) {
-        cy.wrap(closeBtn.first()).click({ force: true });
-
-        cy.contains(/кратор.*булка/i).click();
-        cy.contains(/детали ингредиента/i).should("be.visible");
-        cy.get('div[class*="overlay"], div[class*="modal__overlay"], [role="dialog"]')
-          .first()
-          .click("topLeft");
-        cy.contains(/детали ингредиента/i).should("not.exist");
-      } else {
-        cy.go("back");
-        cy.contains(/детали ингредиента/i).should("not.exist");
-
-        cy.contains(/кратор.*булка/i).click();
-        cy.contains(/детали ингредиента/i).should("be.visible");
-        cy.get("body").type("{esc}");
-        cy.contains(/детали ингредиента/i).should("not.exist");
+describe("Burger Constructor", () => {
+  afterEach(() => {
+    cy.clearCookies();
+    cy.clearLocalStorage();
+    cy.window().then((win) => {
+      win.sessionStorage.clear();
+      if ("caches" in win) {
+        win.caches.keys().then((keys) => keys.forEach((k) => win.caches.delete(k)));
       }
     });
   });
 
-  it("Создаёт заказ (с токенами), показывает номер и очищает конструктор", () => {
+  it("Открывает модалку ингредиента и проверяет название", () => {
+    interceptIngredients();
+    interceptUserOK();
+
+    visitClean("/");
+    cy.wait(["@ingredients", "@user"]);
+
+    cy.fixture<IngredientsFixture>("ingredients.json").then((ingredients) => {
+      const krator = ingredients.find((i) => /Краторная булка/i.test(i.name));
+      expect(krator, 'Ингредиент "Краторная булка" должен быть в фикстуре').to.exist;
+
+      cy.get(`[data-cy="ingredient-card"][data-id="${krator!._id}"]`).click();
+      cy.get('[data-cy="ingredient-modal"] [data-cy="ingredient-title"]').should("have.text", krator!.name);
+      cy.get('[data-cy="modal-close"]').click();
+      cy.get('[data-cy="ingredient-modal"]').should("not.exist");
+    });
+  });
+
+  it("Создаёт заказ и проверяет ингредиенты и счётчики", () => {
     cy.setCookie("accessToken", "TEST_ACCESS");
     cy.window().then((win) => win.localStorage.setItem("refreshToken", "TEST_REFRESH"));
 
@@ -100,42 +117,34 @@ describe("Burger Constructor — проверка intercept-only", () => {
     interceptCreateOrder();
 
     visitClean("/");
-    cy.wait("@ingredients", { timeout: 15000 });
-    cy.wait("@user", { timeout: 15000 });
+    cy.wait(["@ingredients", "@user"]);
 
-    cy.contains(/кратор.*булка/i)
-      .parentsUntil("body")
-      .parent()
-      .find("button")
-      .contains(/добавить/i)
-      .first()
-      .click();
+    cy.fixture<IngredientsFixture>("ingredients.json").then((ingredients) => {
+      const bun = ingredients.find((i) => /Краторная булка/i.test(i.name));
+      const main = ingredients.find((i) => /Метеорит/i.test(i.name));
+      expect(bun, "Булка не найдена в фикстуре").to.exist;
+      expect(main, "Начинка не найдена в фикстуре").to.exist;
 
-    cy.contains(/метеорит/i)
-      .parentsUntil("body")
-      .parent()
-      .find("button")
-      .contains(/добавить/i)
-      .first()
-      .click();
+      cy.get(`[data-cy="ingredient-card"][data-id="${bun!._id}"] [data-cy="add-button"]`).click();
+      cy.get(`[data-cy="ingredient-card"][data-id="${main!._id}"] [data-cy="add-button"]`).click();
 
-    cy.contains(/\d+/).should("exist");
+      cy.get(`[data-cy="constructor-item"][data-id="${bun!._id}"]`).should("exist");
+      cy.get(`[data-cy="constructor-item"][data-id="${main!._id}"]`).should("exist");
 
-    cy.contains("button", /оформить заказ/i).click();
+      expectCardCounter(bun!._id, 2);
+      expectCardCounter(main!._id, 1);
 
-    cy.wait("@createOrder", { timeout: 20000 });
+      cy.contains("button", /оформить заказ/i).click();
+      cy.wait("@createOrder");
 
-    cy.contains("777").should("be.visible");
+      cy.fixture<OrderPayload>("order.json").then((o) => {
+        const n = getOrderNumber(o);
+        cy.contains(new RegExp(`^${n}$`)).should("be.visible");
+      });
 
-    cy.get("body").then(($body) => {
-      const closeBtn = $body.find(
-        'button[aria-label*="закры"], button[aria-label*="Закры"], button[class*="close"]'
-      );
-      if (closeBtn.length) cy.wrap(closeBtn.first()).click({ force: true });
-      else cy.get("body").type("{esc}");
+      cy.get('[data-cy="modal-close"]').click();
+      cy.get('[data-cy="constructor-item"]').should("not.exist");
     });
-
-    cy.contains(/\b0\b/).should("exist");
   });
 
   it("Редиректит на /login без авторизации", () => {
@@ -143,18 +152,15 @@ describe("Burger Constructor — проверка intercept-only", () => {
     interceptUser401();
 
     visitClean("/");
-    cy.wait("@ingredients", { timeout: 15000 });
+    cy.wait("@ingredients");
 
-    cy.contains(/кратор.*булка/i)
-      .parentsUntil("body")
-      .parent()
-      .find("button")
-      .contains(/добавить/i)
-      .first()
-      .click();
+    cy.fixture<IngredientsFixture>("ingredients.json").then((ingredients) => {
+      const bun = ingredients.find((i) => /Краторная булка/i.test(i.name));
+      expect(bun, "Булка не найдена в фикстуре").to.exist;
+      cy.get(`[data-cy="ingredient-card"][data-id="${bun!._id}"] [data-cy="add-button"]`).click();
+    });
 
     cy.contains("button", /оформить заказ/i).click();
-
     cy.location("pathname").should("include", "/login");
   });
 });

@@ -2,19 +2,20 @@ jest.mock('../../utils/burger-api', () => ({ getIngredientsApi: jest.fn() }));
 
 import { configureStore } from '@reduxjs/toolkit';
 import type { TIngredient } from '@utils-types';
+import * as api from '../../utils/burger-api';
 import {
   ingredientsReducer,
+  initialState as ingredientsInitialState,
   fetchIngredients,
   selectIngredientsItems,
   selectIngredientsLoading,
   selectIngredientsError
 } from './slice';
 
-const { getIngredientsApi } = require('../../utils/burger-api') as {
-  getIngredientsApi: jest.Mock;
-};
+const getIngredientsApi = api.getIngredientsApi as jest.MockedFunction<
+  typeof api.getIngredientsApi
+>;
 
-// фикстуры
 const sample: TIngredient[] = [
   {
     _id: '1',
@@ -31,24 +32,19 @@ const sample: TIngredient[] = [
   }
 ];
 
-type State = {
-  items: TIngredient[];
-  data: TIngredient[];
-  isLoading: boolean;
-  error: string | null;
-};
+type IngredientsState = typeof ingredientsInitialState;
 
-const getInitial = (): State => ({
-  items: [],
-  data: [],
-  isLoading: false,
-  error: null
-});
+type RootStateLocal = { ingredients: IngredientsState };
+
+const makeStore = (preloadedState?: Partial<RootStateLocal>) =>
+  configureStore({
+    reducer: { ingredients: ingredientsReducer },
+    preloadedState: preloadedState as RootStateLocal | undefined,
+  });
 
 describe('ingredients reducer (extraReducers)', () => {
   test('pending: isLoading=true и error=null', () => {
-    const initial = getInitial();
-    const next = ingredientsReducer(initial, { type: fetchIngredients.pending.type });
+    const next = ingredientsReducer(ingredientsInitialState, fetchIngredients.pending('req1', undefined));
     expect(next.isLoading).toBe(true);
     expect(next.error).toBeNull();
     expect(next.items).toEqual([]);
@@ -56,11 +52,8 @@ describe('ingredients reducer (extraReducers)', () => {
   });
 
   test('fulfilled: кладёт payload в items и data, isLoading=false', () => {
-    const loading: State = { ...getInitial(), isLoading: true };
-    const next = ingredientsReducer(loading, {
-      type: fetchIngredients.fulfilled.type,
-      payload: sample
-    });
+    const loading: IngredientsState = { ...ingredientsInitialState, isLoading: true };
+    const next = ingredientsReducer(loading, fetchIngredients.fulfilled(sample, 'req1', undefined));
     expect(next.isLoading).toBe(false);
     expect(next.items).toEqual(sample);
     expect(next.data).toEqual(sample);
@@ -68,11 +61,8 @@ describe('ingredients reducer (extraReducers)', () => {
   });
 
   test('rejected: пишет error.message, isLoading=false', () => {
-    const loading: State = { ...getInitial(), isLoading: true };
-    const next = ingredientsReducer(loading, {
-      type: fetchIngredients.rejected.type,
-      error: { message: 'Request failed' }
-    } as any);
+    const loading: IngredientsState = { ...ingredientsInitialState, isLoading: true };
+    const next = ingredientsReducer(loading, fetchIngredients.rejected(new Error('Request failed'), 'req1', undefined));
     expect(next.isLoading).toBe(false);
     expect(next.error).toBe('Request failed');
     expect(next.items).toEqual([]);
@@ -80,11 +70,15 @@ describe('ingredients reducer (extraReducers)', () => {
   });
 
   test('rejected: если message отсутствует — дефолтный текст ошибки', () => {
-    const loading: State = { ...getInitial(), isLoading: true };
-    const next = ingredientsReducer(loading, {
+    const loading: IngredientsState = { ...ingredientsInitialState, isLoading: true };
+    const base = fetchIngredients.rejected(new Error('x'), 'req1', undefined);
+    const noMsgAction: ReturnType<typeof fetchIngredients.rejected> = {
       type: fetchIngredients.rejected.type,
+      meta: base.meta,
+      payload: undefined,
       error: {}
-    } as any);
+    };
+    const next = ingredientsReducer(loading, noMsgAction);
     expect(next.isLoading).toBe(false);
     expect(next.error).toBe('Не удалось загрузить ингридиенты');
     expect(next.items).toEqual([]);
@@ -95,7 +89,7 @@ describe('ingredients reducer (extraReducers)', () => {
 describe('ingredients selectors', () => {
   const state = {
     ingredients: {
-      ...getInitial(),
+      ...ingredientsInitialState,
       items: sample,
       data: sample,
       isLoading: false,
@@ -122,9 +116,7 @@ describe('fetchIngredients thunk — интеграция', () => {
   test('успех: кладёт payload в items/data и снимает isLoading', async () => {
     getIngredientsApi.mockResolvedValueOnce(sample);
 
-    const store = configureStore({
-      reducer: { ingredients: ingredientsReducer }
-    });
+    const store = makeStore();
 
     const promise = store.dispatch(fetchIngredients());
     expect(selectIngredientsLoading(store.getState())).toBe(true);

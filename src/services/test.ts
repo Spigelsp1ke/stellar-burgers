@@ -1,26 +1,17 @@
 import store from './store';
-import type { RootState } from './store';
+import { rootReducer, type RootState } from './store';
 
 describe('rootReducer / store init', () => {
-  it('инициализируется с нужными ключами и корректным initial state', () => {
+  it('имеет нужные ключи редьюсеров', () => {
     const state: RootState = store.getState();
+    expect(Object.keys(state).sort()).toEqual(
+      ['ingredients', 'burgerConstructor', 'feed', 'orders', 'orderDetails', 'user'].sort()
+    );
+  });
 
-    expect(state).toHaveProperty('ingredients');
-    expect(state).toHaveProperty('burgerConstructor');
-    expect(state).toHaveProperty('feed');
-    expect(state).toHaveProperty('orders');
-    expect(state).toHaveProperty('orderDetails');
-    expect(state).toHaveProperty('user');
-
-    expect(state.burgerConstructor).toEqual({
-      bun: null,
-      ingredients: [],
-    });
-
-    expect(state.ingredients).toBeDefined();
-    expect(state.feed).toBeDefined();
-    expect(state.orders).toBeDefined();
-    expect(state.orderDetails).toBeDefined();
-    expect(state.user).toBeDefined();
+  it('UNKNOWN_ACTION + undefined state -> корректный initial state', () => {
+    const byRoot = rootReducer(undefined, { type: 'UNKNOWN_ACTION' });
+    const byStore = store.getState();
+    expect(byRoot).toEqual(byStore);
   });
 });

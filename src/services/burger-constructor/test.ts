@@ -12,12 +12,15 @@ jest.mock('@reduxjs/toolkit', () => {
 
 import {
   burgerConstructorReducer,
+  initialState as constructorInitialState,
   setBun,
   addIngredient,
   removeIngredient,
   moveIngredient,
   clearConstructor,
 } from '../../services/burger-constructor/slice';
+
+type ConstructorState = typeof constructorInitialState;
 
 const bun1: TIngredient = {
   _id: 'bun-1',
@@ -75,19 +78,9 @@ const sauce: TIngredient = {
   image_mobile: 'im2',
 };
 
-type State = {
-  bun: TIngredient | null;
-  ingredients: TConstructorIngredient[];
-};
-
-const initialState: State = {
-  bun: null,
-  ingredients: [],
-};
-
 describe('burger-constructor slice', () => {
   test('setBun: устанавливает булку и заменяет предыдущую', () => {
-    let state = burgerConstructorReducer(initialState, setBun(bun1));
+    let state = burgerConstructorReducer(constructorInitialState, setBun(bun1));
     expect(state.bun?._id).toBe('bun-1');
 
     state = burgerConstructorReducer(state, setBun(bun2));
@@ -96,7 +89,7 @@ describe('burger-constructor slice', () => {
   });
 
   test('addIngredient: добавляет начинку и проставляет id из prepare(nanoid)', () => {
-    let state = burgerConstructorReducer(initialState, addIngredient(cheese));
+    let state = burgerConstructorReducer(constructorInitialState, addIngredient(cheese));
     expect(state.ingredients).toHaveLength(1);
     expect(state.ingredients[0]).toEqual(
       expect.objectContaining({
@@ -112,7 +105,7 @@ describe('burger-constructor slice', () => {
   });
 
   test('removeIngredient: удаляет начинку по id', () => {
-    const start: State = {
+    const start: ConstructorState = {
       bun: null,
       ingredients: [
         { ...cheese, id: 'uid-1' },
@@ -126,7 +119,7 @@ describe('burger-constructor slice', () => {
   });
 
   test('moveIngredient: меняет порядок начинок (fromIndex -> toIndex)', () => {
-    const start: State = {
+    const start: ConstructorState = {
       bun: bun1,
       ingredients: [
         { ...cheese, id: 'uid-1' },
@@ -144,7 +137,7 @@ describe('burger-constructor slice', () => {
   });
 
   test('clearConstructor: очищает булку и начинки', () => {
-    const start: State = {
+    const start: ConstructorState = {
       bun: bun1,
       ingredients: [{ ...cheese, id: 'uid-1' }],
     };

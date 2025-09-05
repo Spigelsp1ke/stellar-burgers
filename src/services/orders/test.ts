@@ -5,8 +5,11 @@ jest.mock('../../utils/burger-api', () => ({
 
 import { configureStore } from '@reduxjs/toolkit';
 import type { TOrder } from '@utils-types';
+import * as api from '../../utils/burger-api';
+import type { TNewOrderResponse } from '../../utils/burger-api';
 import {
   ordersReducer,
+  initialState as ordersInitialState,
   fetchMyOrders,
   createOrder,
   resetLastCreated,
@@ -15,10 +18,8 @@ import {
   selectLastCreatedOrder,
 } from './slice';
 
-const { getOrdersApi, orderBurgerApi } = require('../../utils/burger-api') as {
-  getOrdersApi: jest.Mock;
-  orderBurgerApi: jest.Mock;
-};
+const getOrdersApi = api.getOrdersApi as jest.MockedFunction<typeof api.getOrdersApi>;
+const orderBurgerApi = api.orderBurgerApi as jest.MockedFunction<typeof api.orderBurgerApi>;
 
 const order1: TOrder = {
   _id: 'o1',
@@ -40,71 +41,62 @@ const order2: TOrder = {
   ingredients: ['i3'],
 } as unknown as TOrder;
 
-type State = {
-  my: TOrder[];
-  isLoading: boolean;
-  error: string | null;
-  lastCreatedOrder: TOrder | null;
-};
+type OrdersState = typeof ordersInitialState;
+type RootLocal = { orders: OrdersState };
 
-const getInitial = (): State => ({
-  my: [],
-  isLoading: false,
-  error: null,
-  lastCreatedOrder: null,
-});
+const makeStore = (preloadedState?: Partial<RootLocal>) =>
+  configureStore({
+    reducer: { orders: ordersReducer },
+    preloadedState: preloadedState as RootLocal | undefined,
+  });
+
 
 describe('orders reducer — fetchMyOrders', () => {
   test('pending: isLoading=true, error=null', () => {
-    const next = ordersReducer(getInitial(), { type: fetchMyOrders.pending.type });
+    const next = ordersReducer(ordersInitialState, fetchMyOrders.pending('req1', undefined));
     expect(next.isLoading).toBe(true);
     expect(next.error).toBeNull();
     expect(next.my).toEqual([]);
   });
 
   test('fulfilled: кладёт массив заказов и isLoading=false', () => {
-    const afterPending = ordersReducer(getInitial(), { type: fetchMyOrders.pending.type });
-
-    const next = ordersReducer(afterPending, {
-        type: fetchMyOrders.fulfilled.type,
-        payload: [order1, order2],
-    });
+    const afterPending = ordersReducer(ordersInitialState, fetchMyOrders.pending('req1', undefined));
+    const next = ordersReducer(afterPending, fetchMyOrders.fulfilled([order1, order2], 'req1', undefined));
     expect(next.isLoading).toBe(false);
     expect(next.my).toEqual([order1, order2]);
     expect(next.error).toBeNull();
   });
 
   test('rejected: error.message / default и isLoading=false', () => {
-    const loading = { ...getInitial(), isLoading: true };
-    const withMessage = ordersReducer(loading, {
-      type: fetchMyOrders.rejected.type,
-      error: { message: 'Fail A' },
-    } as any);
+    const loading: OrdersState = { ...ordersInitialState, isLoading: true };
+
+    const withMessage = ordersReducer(loading, fetchMyOrders.rejected(new Error('Fail A'), 'req1', undefined));
     expect(withMessage.isLoading).toBe(false);
     expect(withMessage.error).toBe('Fail A');
 
-    const noMessage = ordersReducer(loading, {
+    const base = fetchMyOrders.rejected(new Error('x'), 'req1', undefined);
+    const noMessage: ReturnType<typeof fetchMyOrders.rejected> = {
       type: fetchMyOrders.rejected.type,
-      error: {},
-    } as any);
-    expect(noMessage.isLoading).toBe(false);
-    expect(noMessage.error).toBe('Не удалось загрузить заказы');
+      meta: base.meta,
+      payload: undefined,
+      error: {}
+    };
+    const nextNoMsg = ordersReducer(loading, noMessage);
+    expect(nextNoMsg.isLoading).toBe(false);
+    expect(nextNoMsg.error).toBe('Не удалось загрузить заказы');
   });
 });
 
 describe('orders reducer — createOrder', () => {
   test('pending: isLoading=true, error=null', () => {
-    const next = ordersReducer(getInitial(), { type: createOrder.pending.type });
+    const next = ordersReducer(ordersInitialState, createOrder.pending('req1', ['i3']));
     expect(next.isLoading).toBe(true);
     expect(next.error).toBeNull();
   });
 
   test('fulfilled: lastCreatedOrder устанавливается и заказ добавляется в начало my', () => {
-    const start = { ...getInitial(), isLoading: true, my: [order1] };
-    const next = ordersReducer(start, {
-      type: createOrder.fulfilled.type,
-      payload: order2,
-    });
+    const start = { ...ordersInitialState, isLoading: true, my: [order1] };
+    const next = ordersReducer(start, createOrder.fulfilled(order2, 'req1', ['i3']));
     expect(next.isLoading).toBe(false);
     expect(next.lastCreatedOrder).toEqual(order2);
     expect(next.my).toEqual([order2, order1]);
@@ -112,26 +104,27 @@ describe('orders reducer — createOrder', () => {
   });
 
   test('rejected: error.message / default и isLoading=false', () => {
-    const loading = { ...getInitial(), isLoading: true };
-    const withMessage = ordersReducer(loading, {
-      type: createOrder.rejected.type,
-      error: { message: 'Fail B' },
-    } as any);
+    const withMessage = ordersReducer({ ...ordersInitialState, isLoading: true }, createOrder.rejected(new Error('Fail B'), 'req1', ['i3']));
     expect(withMessage.isLoading).toBe(false);
     expect(withMessage.error).toBe('Fail B');
 
-    const noMessage = ordersReducer(loading, {
+    const loadingCO = { ...ordersInitialState, isLoading: true };
+    const baseCO = createOrder.rejected(new Error('x'), 'req1', ['i1', 'i2']);
+    const noMessageCO: ReturnType<typeof createOrder.rejected> = {
       type: createOrder.rejected.type,
-      error: {},
-    } as any);
-    expect(noMessage.isLoading).toBe(false);
-    expect(noMessage.error).toBe('Не удалось оформить заказ');
+      meta: baseCO.meta,
+      payload: undefined,
+      error: {}
+    };
+    const nextNoMsgCO = ordersReducer(loadingCO, noMessageCO);
+    expect(nextNoMsgCO.isLoading).toBe(false);
+    expect(nextNoMsgCO.error).toBe('Не удалось оформить заказ');
   });
 });
 
 describe('orders reducer — resetLastCreated', () => {
   test('обнуляет lastCreatedOrder', () => {
-    const start: State = { ...getInitial(), lastCreatedOrder: order1 };
+    const start: OrdersState = { ...ordersInitialState, lastCreatedOrder: order1 };
     const next = ordersReducer(start, resetLastCreated());
     expect(next.lastCreatedOrder).toBeNull();
 
@@ -144,7 +137,7 @@ describe('orders reducer — resetLastCreated', () => {
 describe('orders selectors', () => {
   const state = {
     orders: {
-      ...getInitial(),
+      ...ordersInitialState,
       my: [order1, order2],
       lastCreatedOrder: order2,
     },
@@ -196,12 +189,10 @@ describe('orders thunks — интеграция со стором', () => {
   });
 
   test('createOrder: успех — заказ добавляется в начало и сохраняется в lastCreatedOrder', async () => {
-    orderBurgerApi.mockResolvedValueOnce({ order: order2 });
+    const apiResp: TNewOrderResponse = { success: true, order: order2, name: 'Space Burger', };
+    orderBurgerApi.mockResolvedValueOnce(apiResp);
 
-    const store = configureStore({
-      reducer: { orders: ordersReducer },
-      preloadedState: { orders: { ...getInitial(), my: [order1] } },
-    });
+    const store = makeStore({ orders: { ...ordersInitialState, my: [order1] } });
 
     const p = store.dispatch(createOrder(['i3']));
     expect(selectOrdersLoading(store.getState())).toBe(true);
