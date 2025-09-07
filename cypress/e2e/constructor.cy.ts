@@ -26,6 +26,19 @@ type UserFixture = { user: User };
 type OrderPayload = { order: { number: number } };
 type OrderResponse = { success: true } & OrderPayload & Record<string, unknown>;
 
+const SEL = {
+  ingredientCard: (id: string) => `[data-cy="ingredient-card"][data-id="${id}"]`,
+  ingredientCardAdd: (id: string) =>
+    `[data-cy="ingredient-card"][data-id="${id}"] [data-cy="add-button"]`,
+  ingredientCardCounter: (id: string) =>
+    `[data-cy="ingredient-card"][data-id="${id}"] [data-cy="counter"]`,
+  constructorItem: (id: string) => `[data-cy="constructor-item"][data-id="${id}"]`,
+  constructorItemsAny: `[data-cy="constructor-item"]`,
+  ingredientModal: `[data-cy="ingredient-modal"]`,
+  ingredientTitle: `[data-cy="ingredient-title"]`,
+  modalClose: `[data-cy="modal-close"]`,
+} as const;
+
 const resolveIngredients = (f: IngredientsFixture): Ingredient[] => f;
 const toUserBody = (u: UserFixture): { user: User } => u;
 const getOrderNumber = (o: OrderPayload): number => o.order.number;
@@ -74,9 +87,7 @@ const interceptCreateOrder = () => {
 };
 
 const expectCardCounter = (id: string, n: number) =>
-  cy
-    .get(`[data-cy="ingredient-card"][data-id="${id}"] [data-cy="counter"]`)
-    .should("have.text", String(n));
+  cy.get(SEL.ingredientCardCounter(id)).should("have.text", String(n));
 
 describe("Burger Constructor", () => {
   afterEach(() => {
@@ -101,10 +112,10 @@ describe("Burger Constructor", () => {
       const krator = ingredients.find((i) => /Краторная булка/i.test(i.name));
       expect(krator, 'Ингредиент "Краторная булка" должен быть в фикстуре').to.exist;
 
-      cy.get(`[data-cy="ingredient-card"][data-id="${krator!._id}"]`).click();
-      cy.get('[data-cy="ingredient-modal"] [data-cy="ingredient-title"]').should("have.text", krator!.name);
-      cy.get('[data-cy="modal-close"]').click();
-      cy.get('[data-cy="ingredient-modal"]').should("not.exist");
+      cy.get(SEL.ingredientCard(krator!._id)).click();
+      cy.get(`${SEL.ingredientModal} ${SEL.ingredientTitle}`).should("have.text", krator!.name);
+      cy.get(SEL.modalClose).click();
+      cy.get(SEL.ingredientModal).should("not.exist");
     });
   });
 
@@ -125,11 +136,11 @@ describe("Burger Constructor", () => {
       expect(bun, "Булка не найдена в фикстуре").to.exist;
       expect(main, "Начинка не найдена в фикстуре").to.exist;
 
-      cy.get(`[data-cy="ingredient-card"][data-id="${bun!._id}"] [data-cy="add-button"]`).click();
-      cy.get(`[data-cy="ingredient-card"][data-id="${main!._id}"] [data-cy="add-button"]`).click();
+      cy.get(SEL.ingredientCardAdd(bun!._id)).click();
+      cy.get(SEL.ingredientCardAdd(main!._id)).click();
 
-      cy.get(`[data-cy="constructor-item"][data-id="${bun!._id}"]`).should("exist");
-      cy.get(`[data-cy="constructor-item"][data-id="${main!._id}"]`).should("exist");
+      cy.get(SEL.constructorItem(bun!._id)).should("exist");
+      cy.get(SEL.constructorItem(main!._id)).should("exist");
 
       expectCardCounter(bun!._id, 2);
       expectCardCounter(main!._id, 1);
@@ -142,8 +153,8 @@ describe("Burger Constructor", () => {
         cy.contains(new RegExp(`^${n}$`)).should("be.visible");
       });
 
-      cy.get('[data-cy="modal-close"]').click();
-      cy.get('[data-cy="constructor-item"]').should("not.exist");
+      cy.get(SEL.modalClose).click();
+      cy.get(SEL.constructorItemsAny).should("not.exist");
     });
   });
 
@@ -157,7 +168,7 @@ describe("Burger Constructor", () => {
     cy.fixture<IngredientsFixture>("ingredients.json").then((ingredients) => {
       const bun = ingredients.find((i) => /Краторная булка/i.test(i.name));
       expect(bun, "Булка не найдена в фикстуре").to.exist;
-      cy.get(`[data-cy="ingredient-card"][data-id="${bun!._id}"] [data-cy="add-button"]`).click();
+      cy.get(SEL.ingredientCardAdd(bun!._id)).click();
     });
 
     cy.contains("button", /оформить заказ/i).click();

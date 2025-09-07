@@ -3,7 +3,6 @@ jest.mock('../../utils/burger-api', () => ({
 }));
 
 import { configureStore } from '@reduxjs/toolkit';
-import type { AnyAction } from '@reduxjs/toolkit';
 import * as api from '../../utils/burger-api';
 
 import type { TOrdersData, TOrder } from '@utils-types';
