@@ -4,11 +4,15 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { LoginUI } from '@ui-pages';
 import { loginUser } from '../../services/user/slice';
 
+type LocationState = {
+  from?: { pathname?: string };
+};
+
 export const Login: FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation() as {
-    state?: { from?: { pathname?: string } };
+    state?: LocationState;
   };
 
   const [email, setEmail] = useState('');
@@ -25,8 +29,18 @@ export const Login: FC = () => {
       await dispatch(loginUser({ email, password })).unwrap();
       const from = location.state?.from?.pathname || '/';
       navigate(from, { replace: true });
-    } catch (err: any) {
-      setErrorText(err?.message || 'Не удалось войти');
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'object' &&
+              err !== null &&
+              'message' in err &&
+              typeof (err as { message?: unknown }).message === 'string'
+            ? (err as { message: string }).message
+            : 'Не удалось войти';
+
+      setErrorText(message);
     }
   };
 

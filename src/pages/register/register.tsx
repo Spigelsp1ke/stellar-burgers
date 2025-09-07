@@ -4,6 +4,19 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { RegisterUI } from '@ui-pages';
 import { registerUser, selectUserLoading } from '../../services/user/slice';
 
+const getErrorMessage = (err: unknown, fallback: string) => {
+  if (err instanceof Error) return err.message;
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    'message' in err &&
+    typeof (err as { message?: unknown }).message === 'string'
+  ) {
+    return (err as { message: string }).message;
+  }
+  return fallback;
+};
+
 export const Register: FC = () => {
   const dispatch = useDispatch();
 
@@ -21,8 +34,8 @@ export const Register: FC = () => {
       await dispatch(
         registerUser({ name: userName, email, password })
       ).unwrap();
-    } catch (err: any) {
-      setErrorText(err?.message || 'Не удалось зарегистрироваться');
+    } catch (err: unknown) {
+      setErrorText(getErrorMessage(err, 'Не удалось зарегистрироваться'));
     }
   };
 

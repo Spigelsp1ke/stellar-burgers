@@ -11,6 +11,7 @@ import {
   selectOrdersLoading
 } from '../../services/orders/slice';
 import { clearConstructor } from '../../services/burger-constructor/slice';
+import { TConstructorItems } from '../ui/burger-constructor/type';
 
 export const BurgerConstructor: FC = () => {
   const dispatch = useDispatch();
@@ -51,7 +52,10 @@ export const BurgerConstructor: FC = () => {
     dispatch(clearConstructor());
   };
 
-  const constructorItems = { bun, ingredients };
+  const constructorItems: TConstructorItems = {
+    bun,
+    ingredients
+  };
 
   return (
     <BurgerConstructorUI
